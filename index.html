@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DENISIA PAY | SUPREME COSMOS BANK</title>
+
+<script src="https://unpkg.com/@tonconnect/sdk@latest/dist/tonconnect-sdk.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+:root {
+    --c: #00f0ff;
+    --c-dark: #0066ff;
+    --glow: 0 0 25px rgba(0, 240, 255, 0.6);
+    --glass: rgba(0, 8, 15, 0.95);
+    --border: 1px solid #00f0ff;
+    --danger: #ff004c;
+    --success: #00ff88;
+    --gold: #ffcc00;
+}
+
+/* ═══ ОСНОВНОЙ СТИЛЬ ═══ */
+* { box-sizing: border-box; margin: 0; padding: 0; outline: none; -webkit-tap-highlight-color: transparent; }
+body, html { 
+    width: 100%; height: 100%; 
+    background: #000; color: var(--c); 
+    font-family: 'Share Tech Mono', monospace; 
+    overflow: hidden; 
+}
+
+#canvas-bg { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+/* ═══ АНИМИРОВАННЫЙ ФОН ПАНЕЛЕЙ ═══ */
+.panel {
+    background: var(--glass);
+    border: var(--border);
+    box-shadow: var(--glow);
+    backdrop-filter: blur(15px);
+    position: relative;
+    overflow: hidden;
+}
+
+.panel::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.1), transparent);
+    animation: scan 4s linear infinite;
+}
+
+@keyframes scan {
+    0% { left: -100%; }
+    100% { left: 200%; }
+}
+
+/* ═══ ЭКРАНЫ ═══ */
+.screen {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, transparent 20%, #000 100%);
+}
+
+.logo-main {
+    font-family: 'Orbitron';
+    font-size: 3rem;
+    font-weight: 900;
+    letter-spacing: 15px;
+    text-shadow: var(--glow);
+    margin-bottom: 10px;
+    animation: pulse 2s infinite alternate;
+}
+
+@keyframes pulse {
+    from { opacity: 0.8; transform: scale(1); }
+    to { opacity: 1; transform: scale(1.02); }
+}
+
+/* ═══ ТЕРМИНАЛ ЭЛЕМЕНТЫ ═══ */
+.inp-cyber {
+    width: 100%;
+    max-width: 400px;
+    background: rgba(0,0,0,0.7);
+    border: 1px solid var(--c);
+    padding: 20px;
+    color: #fff;
+    font-family: 'Share Tech Mono';
+    font-size: 1.2rem;
+    text-align: center;
+    margin-bottom: 20px;
+    clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+}
+
+.btn-cyber {
+    width: 100%;
+    max-width: 400px;
+    padding: 20px;
+    background: transparent;
+    border: 1px solid var(--c);
+    color: var(--c);
+    font-family: 'Orbitron';
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+    position: relative;
+    clip-path: polygon(0 0, 90% 0, 100% 100%, 10% 100%);
+}
+
+.btn-cyber:hover {
+    background: var(--c);
+    color: #000;
+    box-shadow: var(--glow);
+}
+
+/* ═══ ИНТЕРФЕЙС ПРИЛОЖЕНИЯ ═══ */
+#app-interface {
+    display: none;
+    opacity: 0;
+    height: 100vh;
+    z-index: 200;
+    position: relative;
+    flex-direction: column;
+}
+
+.header {
+    height: 80px;
+    border-bottom: 1px solid var(--c);
+    display: flex;
+    align-items: center;
+    padding: 0 25px;
+    justify-content: space-between;
+    background: rgba(0,0,0,0.9);
+}
+
+.status-row {
+    background: rgba(0,240,255,0.05);
+    height: 30px;
+    display: flex;
+    align-items: center;
+    padding: 0 25px;
+    font-size: 0.7rem;
+    border-bottom: 1px solid rgba(0,240,255,0.2);
+}
+
+.main-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 25px;
+}
+
+/* ═══ КАРТОЧКИ БАЛАНСА ═══ */
+.balance-card {
+    padding: 50px 30px;
+    border: 1px solid var(--c);
+    text-align: center;
+    margin-bottom: 30px;
+    background: linear-gradient(135deg, rgba(0,240,255,0.05) 0%, transparent 100%);
+}
+
+.balance-val {
+    font-family: 'Orbitron';
+    font-size: 3.5rem;
+    font-weight: 900;
+    margin: 20px 0;
+    text-shadow: var(--glow);
+}
+
+/* ═══ СЕЛЕКТОР КОШЕЛЬКОВ ═══ */
+.modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.98);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-box {
+    width: 90%;
+    max-width: 500px;
+    padding: 30px;
+    border: 1px solid var(--c);
+}
+
+.wallet-option {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px;
+    border: 1px solid rgba(0,240,255,0.3);
+    margin-bottom: 15px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.wallet-option:hover {
+    border-color: var(--c);
+    background: rgba(0,240,255,0.1);
+}
+
+.wallet-logo { width: 45px; height: 45px; object-fit: contain; }
+
+/* ═══ ДОК-ПАНЕЛЬ ═══ */
+.nav-dock {
+    height: 80px;
+    border-top: 1px solid var(--c);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background: #000;
+}
+
+.nav-item {
+    font-family: 'Orbitron';
+    font-size: 0.8rem;
+    opacity: 0.5;
+    cursor: pointer;
+    text-align: center;
+}
+
+.nav-item.active {
+    opacity: 1;
+    color: var(--c);
+    text-shadow: var(--glow);
+}
+
+/* СКРОЛЛБАР */
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-thumb { background: var(--c); }
+
+</style>
+</head>
+<body>
+
+<div id="canvas-bg"></div>
+
+<section id="gate-screen" class="screen">
+    <div class="panel" style="padding: 60px; text-align: center;">
+        <div class="logo-main">DENISIA</div>
+        <div style="letter-spacing: 10px; margin-bottom: 40px; color: var(--success);">PAYMENT PROTOCOL V.27</div>
+        
+        <div style="max-width: 400px; font-size: 0.8rem; line-height: 2; margin-bottom: 40px; opacity: 0.7;">
+            SYSTEM STATUS: <span style="color:var(--success)">OPTIMAL</span><br>
+            ENCRYPTION: <span style="color:var(--c)">AES-256 QUANTUM</span><br>
+            NETWORKS: <span style="color:var(--gold)">MULTI-CHAIN ACTIVATED</span>
+        </div>
+        
+        <button class="btn-cyber" onclick="transitionToReg()">ACCESS TERMINAL</button>
+    </div>
+</section>
+
+<section id="reg-screen" class="screen" style="display:none; opacity:0;">
+    <div class="panel" style="padding: 50px;">
+        <h2 style="margin-bottom: 30px;">IDENTITY UPLOAD</h2>
+        <input type="text" id="user-alias" class="inp-cyber" placeholder="ENTER NEW ALIAS" maxlength="15">
+        <button class="btn-cyber" onclick="initializeBank()">CONFIRM IDENTITY</button>
+    </div>
+</section>
+
+<main id="app-interface">
+    <header class="header">
+        <div style="font-family: 'Orbitron'; font-weight: 900; letter-spacing: 5px;">DENISIA <span style="color:var(--gold)">PAY</span></div>
+        <div id="wallet-trigger" style="display:flex; align-items:center; gap:10px; cursor:pointer;" onclick="toggleWalletModal()">
+            <div id="status-dot" style="width:10px; height:10px; background:var(--danger); border-radius:50%;"></div>
+            <span id="wallet-label" style="font-size:0.7rem;">CONNECT SYSTEM</span>
+        </div>
+    </header>
+
+    <div class="status-row">
+        <marquee scrollamount="3">Welcome <span id="display-alias">CITIZEN</span>. 10% TREASURY TAX ACTIVE. ALL TRANSACTIONS ARE ENCRYPTED VIA DENISIA NODE V27.</marquee>
+    </div>
+
+    <div class="main-content">
+        <div class="balance-card">
+            <p style="font-size:0.7rem; letter-spacing:5px; opacity:0.5;">IMPERIAL LIQUIDITY</p>
+            <div class="balance-val" id="main-balance">0.00</div>
+            <div id="active-address" style="font-size:0.6rem; opacity:0.3; word-break:break-all;">WALLET_NOT_LINKED</div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; margin-bottom:30px;">
+            <button class="btn-cyber" style="font-size:0.7rem; padding:15px;" onclick="alert('Scan Mode Active')">RECEIVE</button>
+            <button class="btn-cyber" style="font-size:0.7rem; padding:15px;" onclick="openTransfer()">SEND FUNDS</button>
+        </div>
+
+        <h2 style="font-size:0.8rem; margin-bottom:15px; opacity:0.6;">SUPPORTED PROTOCOLS</h2>
+        <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:10px;">
+            <div class="panel" style="padding:15px; text-align:center; font-size:0.6rem;">TON</div>
+            <div class="panel" style="padding:15px; text-align:center; font-size:0.6rem;">BSC</div>
+            <div class="panel" style="padding:15px; text-align:center; font-size:0.6rem;">ETH</div>
+        </div>
+    </div>
+
+    <nav class="nav-dock">
+        <div class="nav-item active">BANK</div>
+        <div class="nav-item">CHATS</div>
+        <div class="nav-item">NODES</div>
+        <div class="nav-item">SETT</div>
+    </nav>
+</main>
+
+<div id="wallet-modal" class="modal">
+    <div class="modal-box panel">
+        <h2 style="margin-bottom:25px; font-size:1.1rem;">SELECT INTERFACE</h2>
+        
+        <div class="wallet-option" onclick="connectTon()">
+            <img class="wallet-logo" src="https://ton.org/download/ton_symbol.svg">
+            <div>
+                <div style="font-weight:bold;">TONKEEPER</div>
+                <div style="font-size:0.6rem; opacity:0.5;">Native TON Protocol</div>
+            </div>
+        </div>
+
+        <div class="wallet-option" onclick="connectEvm('56')">
+            <img class="wallet-logo" src="https://upload.wikimedia.org/wikipedia/commons/1/12/Binance_logo.svg">
+            <div>
+                <div style="font-weight:bold;">BINANCE WALLET</div>
+                <div style="font-size:0.6rem; opacity:0.5;">BNB Smart Chain</div>
+            </div>
+        </div>
+
+        <div class="wallet-option" onclick="connectEvm('1')">
+            <img class="wallet-logo" src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_Fox.svg">
+            <div>
+                <div style="font-weight:bold;">METAMASK</div>
+                <div style="font-size:0.6rem; opacity:0.5;">Ethereum Network</div>
+            </div>
+        </div>
+
+        <button class="btn-cyber" style="margin-top:20px; width:100%;" onclick="toggleWalletModal()">CLOSE</button>
+    </div>
+</div>
+
+<script>
+// --- КОНФИГУРАЦИЯ ---
+let tonConnector = null;
+let currentAccount = null;
+let userAlias = "CITIZEN";
+
+// --- ИНИЦИАЛИЗАЦИЯ THREE.JS (Космический фон) ---
+function initBackground() {
+    const scene = new THREE.Scene();
+    const cam = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const ren = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    ren.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById('canvas-bg').appendChild(ren.domElement);
+
+    const starsGeo = new THREE.BufferGeometry();
+    const starsPos = [];
+    for(let i=0; i<15000; i++) {
+        starsPos.push((Math.random()-0.5)*1000, (Math.random()-0.5)*1000, (Math.random()-0.5)*1000);
+    }
+    starsGeo.setAttribute('position', new THREE.Float32BufferAttribute(starsPos, 3));
+    const starsMat = new THREE.PointsMaterial({ color: 0x00f0ff, size: 0.7, transparent: true });
+    const stars = new THREE.Points(starsGeo, starsMat);
+    scene.add(stars);
+
+    cam.position.z = 200;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        stars.rotation.y += 0.0005;
+        stars.rotation.x += 0.0002;
+        ren.render(scene, cam);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+        cam.aspect = window.innerWidth / window.innerHeight;
+        cam.updateProjectionMatrix();
+        ren.setSize(window.innerWidth, window.innerHeight);
+    });
+}
+
+// --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ЭКРАНОВ ---
+function transitionToReg() {
+    gsap.to('#gate-screen', { opacity: 0, duration: 0.8, onComplete: () => {
+        document.getElementById('gate-screen').style.display = 'none';
+        document.getElementById('reg-screen').style.display = 'flex';
+        gsap.to('#reg-screen', { opacity: 1, duration: 0.8 });
+    }});
+}
+
+function initializeBank() {
+    const val = document.getElementById('user-alias').value;
+    if (val.length < 2) return alert("Alias too short!");
+    userAlias = val.toUpperCase();
+    
+    gsap.to('#reg-screen', { opacity: 0, duration: 0.8, onComplete: () => {
+        document.getElementById('reg-screen').style.display = 'none';
+        document.getElementById('app-interface').style.display = 'flex';
+        document.getElementById('display-alias').textContent = userAlias;
+        gsap.to('#app-interface', { opacity: 1, duration: 1 });
+    }});
+}
+
+// --- ЛОГИКА КОШЕЛЬКОВ ---
+function toggleWalletModal() {
+    const m = document.getElementById('wallet-modal');
+    m.style.display = (m.style.display === 'flex') ? 'none' : 'flex';
+}
+
+async function connectTon() {
+    if (!tonConnector) {
+        tonConnector = new TonConnectSDK.TonConnect({ 
+            manifestUrl: "https://denis19sl02-sketch.github.io/DENISIA-Pay/tonconnect-manifest.json" 
+        });
+    }
+    
+    try {
+        const universalLink = tonConnector.connect({
+            universalLink: 'https://app.tonkeeper.com/ton-connect',
+            bridgeUrl: 'https://bridge.tonapi.io/bridge'
+        });
+        
+        if (window.innerWidth < 800) {
+            window.location.href = universalLink;
+        } else {
+            toggleWalletModal();
+            alert("Open Tonkeeper on your phone or use mobile version");
+        }
+
+        tonConnector.onStatusChange(wallet => {
+            if (wallet) {
+                updateUI(wallet.account.address, "TON");
+            }
+        });
+    } catch(e) { console.error(e); }
+}
+
+async function connectEvm(chainId) {
+    if (window.ethereum) {
+        try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            updateUI(accounts[0], chainId === '56' ? "BSC" : "ETH");
+            toggleWalletModal();
+        } catch (e) { alert("Connection rejected"); }
+    } else {
+        // Deep link для MetaMask на мобильных
+        window.location.href = "https://metamask.app.link/dapp/" + window.location.host;
+    }
+}
+
+function updateUI(addr, type) {
+    const shortAddr = addr.slice(0, 6) + "..." + addr.slice(-4);
+    document.getElementById('wallet-label').textContent = shortAddr;
+    document.getElementById('status-dot').style.background = "var(--success)";
+    document.getElementById('active-address').textContent = `ID: ${addr} [${type}]`;
+    document.getElementById('main-balance').textContent = "ACTIVE";
+    document.getElementById('main-balance').style.fontSize = "1.5rem";
+}
+
+// Запуск
+window.onload = initBackground;
+
+</script>
+</body>
+</html>

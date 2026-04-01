@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>DENISIA PAY | SUPREME COSMOS V24</title>
+    
+    <script src="https://unpkg.com/@tonconnect/ui@latest/dist/tonconnect-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;900&family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --c: #00f0ff;
+            --glow: 0 0 30px #00f0ff, 0 0 60px rgba(0, 240, 255, 0.3);
+            --bg: #000000;
+            --glass: rgba(0, 10, 20, 0.8);
+            --border: 2px solid #00f0ff;
+            --danger: #ff004c;
+            --success: #00ff88;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; outline: none; -webkit-tap-highlight-color: transparent; }
+        
+        body, html { 
+            width: 100%; height: 100%; background: var(--bg); 
+            color: var(--c); font-family: 'Share Tech Mono', monospace; 
+            overflow: hidden; 
+        }
+
+        #canvas-bg { position: fixed; inset: 0; z-index: 1; }
+
+        .viewport {
+            position: fixed; inset: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: center;
+            background: radial-gradient(circle, transparent, rgba(0,0,0,0.8));
+            transition: 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .imperial-panel {
+            width: 90%; max-width: 550px; padding: 50px;
+            background: var(--glass); border: var(--border);
+            box-shadow: var(--glow); backdrop-filter: blur(25px);
+            text-align: center; border-radius: 0; 
+            position: relative; overflow: hidden;
+        }
+
+        .imperial-panel::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(45deg, transparent, rgba(0,240,255,0.1), transparent);
+            transform: rotate(45deg); animation: shine 6s infinite;
+        }
+
+        @keyframes shine { 0% { transform: translateX(-100%) rotate(45deg); } 100% { transform: translateX(100%) rotate(45deg); } }
+
+        h1, h2, h3 { font-family: 'Orbitron'; letter-spacing: 8px; text-transform: uppercase; text-shadow: var(--glow); }
+        .logo-text { font-size: 2.5rem; font-weight: 900; margin-bottom: 40px; }
+
+        .cosmic-input {
+            width: 100%; background: rgba(0,0,0,0.8); border: 1px solid var(--c);
+            padding: 20px; color: #fff; font-size: 1.2rem; margin-bottom: 25px;
+            font-family: 'Share Tech Mono'; text-align: center;
+        }
+
+        .cosmic-btn {
+            width: 100%; padding: 22px; background: transparent;
+            border: var(--border); color: var(--c);
+            font-family: 'Orbitron'; font-weight: 900; cursor: pointer;
+            text-transform: uppercase; letter-spacing: 5px; transition: 0.4s;
+            box-shadow: inset 0 0 10px rgba(0,240,255,0.2); margin-bottom: 15px;
+        }
+
+        .cosmic-btn:hover { background: var(--c); color: #000; box-shadow: var(--glow); transform: scale(1.02); }
+        .btn-red { border-color: var(--danger); color: var(--danger); }
+        .btn-red:hover { background: var(--danger); color: #fff; box-shadow: 0 0 30px var(--danger); }
+
+        /* --- CONNECT WALLET BUTTON --- */
+        #connect-btn-custom {
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            width: auto; padding: 12px 24px;
+            background: rgba(0,240,255,0.08);
+            border: 1px solid var(--c); color: var(--c);
+            font-family: 'Orbitron'; font-size: 0.65rem; font-weight: 900;
+            cursor: pointer; letter-spacing: 3px;
+            transition: 0.3s; white-space: nowrap;
+        }
+        #connect-btn-custom:hover { background: var(--c); color: #000; box-shadow: var(--glow); }
+        #connect-btn-custom .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--danger); flex-shrink: 0;
+            box-shadow: 0 0 8px var(--danger);
+        }
+        #connect-btn-custom.connected .dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        #connect-btn-custom.connected { border-color: var(--success); color: var(--success); background: rgba(0,255,136,0.05); }
+        #connect-btn-custom.connected:hover { background: var(--success); color: #000; box-shadow: 0 0 30px var(--success); }
+
+        /* --- MAIN APP --- */
+        #app-root { display: none; opacity: 0; z-index: 200; position: relative; height: 100vh; flex-direction: column; }
+        
+        .top-bar {
+            height: 90px; border-bottom: 1px solid var(--c);
+            display: flex; align-items: center; padding: 0 30px;
+            justify-content: space-between; background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+        }
+
+        .main-scroller { flex: 1; overflow-y: auto; padding: 30px; padding-bottom: 120px; }
+
+        .status-card {
+            background: rgba(0, 240, 255, 0.05); border: 1px solid var(--c);
+            padding: 40px; margin-bottom: 30px; text-align: center;
+            box-shadow: inset 0 0 20px rgba(0,240,255,0.1);
+        }
+
+        .balance-hero { font-size: 4rem; font-family: 'Orbitron'; margin: 20px 0; text-shadow: var(--glow); animation: glow-pulse 2s infinite; }
+        @keyframes glow-pulse { 0%, 100% { text-shadow: var(--glow); } 50% { text-shadow: 0 0 50px #00f0ff; } }
+
+        /* Wallet status indicator inside app */
+        #wallet-status-bar {
+            padding: 12px 30px;
+            background: rgba(255,0,76,0.08);
+            border-bottom: 1px solid var(--danger);
+            font-size: 0.7rem; letter-spacing: 2px;
+            display: flex; align-items: center; gap: 10px;
+            transition: 0.4s;
+        }
+        #wallet-status-bar.ok {
+            background: rgba(0,255,136,0.06);
+            border-bottom-color: var(--success);
+            color: var(--success);
+        }
+        #wallet-status-bar .pulse {
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--danger); animation: blink 1s infinite;
+            box-shadow: 0 0 6px var(--danger);
+        }
+        #wallet-status-bar.ok .pulse { background: var(--success); box-shadow: 0 0 6px var(--success); animation: none; }
+        @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+        #chat-interface { display: none; height: 100%; flex-direction: column; }
+        .chat-stream { flex: 1; overflow-y: auto; padding: 25px; display: flex; flex-direction: column; gap: 20px; }
+        .msg-bubble { padding: 15px 25px; border: 1px solid var(--c); background: rgba(0,240,255,0.03); max-width: 80%; position: relative; }
+        .msg-bubble.me { align-self: flex-end; background: rgba(0,240,255,0.15); box-shadow: var(--glow); }
+
+        .dock {
+            position: fixed; bottom: 0; width: 100%; height: 85px;
+            border-top: 1px solid var(--c); background: rgba(0,0,0,0.9);
+            display: flex; justify-content: space-around; align-items: center;
+        }
+        .dock-item { font-family: 'Orbitron'; font-size: 0.8rem; opacity: 0.5; cursor: pointer; transition: 0.3s; letter-spacing: 2px; }
+        .dock-item.active { opacity: 1; color: var(--c); text-shadow: var(--glow); border-bottom: 2px solid var(--c); }
+
+        #tx-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.98);
+            z-index: 1000; display: none; align-items: center; justify-content: center; padding: 20px;
+        }
+
+        /* --- TON CONNECT native button hide (we use custom) --- */
+        #ton-port { display: none !important; }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: var(--c); }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+<div id="canvas-bg"></div>
+
+<section id="gate-screen" class="viewport">
+    <div class="imperial-panel">
+        <h1 class="logo-text">DENISIA PAY</h1>
+        <h2 style="font-size: 0.9rem; margin-bottom: 20px; color: var(--success);">CORE PROTOCOL V24</h2>
+        <p style="font-size: 0.85rem; line-height: 1.8; margin-bottom: 40px; opacity: 0.8; text-align: justify;">
+            DENISIA Pay is not responsible for any loss of cryptocurrency. All wallets are external. 
+            By initializing this session, you authorize the Empire to deduct a <span style="color:var(--c); font-weight:900;">10% COMMISSION</span> from every transaction. 90% goes to the recipient, 10% to the Treasury.
+        </p>
+        <button class="cosmic-btn" onclick="openRegistry()">ACCEPT & INITIALIZE</button>
+        <button class="cosmic-btn btn-red" onclick="window.close()">REJECT</button>
+    </div>
+</section>
+
+<section id="reg-screen" class="viewport" style="display: none; opacity: 0;">
+    <div class="imperial-panel">
+        <h1>IDENTITY</h1>
+        <p style="margin-bottom: 30px; opacity: 0.5;">REGISTER YOUR ALIAS IN THE DENISIA NETWORK</p>
+        <input type="text" id="alias-input" class="cosmic-input" placeholder="USERNAME..." maxlength="15">
+        <div id="alias-err" style="color: var(--danger); font-size: 0.7rem; margin-top: -15px; margin-bottom: 15px; display: none;">ALIAS UNAVAILABLE</div>
+        <button class="cosmic-btn" onclick="launchEmpire()">ESTABLISH IDENTITY</button>
+    </div>
+</section>
+
+<main id="app-root">
+    <header class="top-bar">
+        <div style="font-family:'Orbitron'; font-weight:900; letter-spacing:4px; font-size: 0.9rem;">DENISIA PAY</div>
+        <!-- Скрытый TON Connect контейнер — нужен для SDK -->
+        <div id="ton-port"></div>
+        <!-- Наша кастомная кнопка -->
+        <button id="connect-btn-custom" onclick="handleWalletBtn()">
+            <span class="dot"></span>
+            <span id="connect-btn-label">CONNECT WALLET</span>
+        </button>
+    </header>
+
+    <!-- Статус кошелька -->
+    <div id="wallet-status-bar">
+        <span class="pulse"></span>
+        <span id="wallet-status-text">WALLET NOT CONNECTED — TAP TO LINK TON WALLET</span>
+    </div>
+
+    <div id="view-wallet" class="main-scroller">
+        <div class="status-card">
+            <p style="font-size: 0.7rem; letter-spacing: 5px; opacity: 0.5;">IMPERIAL RESERVE</p>
+            <div id="hero-bal" class="balance-hero">0.00 TON</div>
+            <div id="addr-id" style="font-size: 0.6rem; opacity: 0.3; letter-spacing: 1px; word-break: break-all;">ID: UNKNOWN_ENTITY</div>
+        </div>
+
+        <div class="imperial-panel" style="width: 100%; max-width: none; padding: 30px;">
+            <h3 style="font-size: 0.8rem; margin-bottom: 20px;">SEARCH CITIZENS</h3>
+            <input type="text" id="search-bar" class="cosmic-input" placeholder="ENTER ALIAS..." oninput="findCitizens()">
+            <div id="search-results"></div>
+        </div>
+    </div>
+
+    <div id="view-chat" class="main-scroller" style="display: none; padding: 0;">
+        <div id="chat-interface">
+            <div class="top-bar" style="background: rgba(0,240,255,0.05);">
+                <span id="chat-alias" style="font-family:'Orbitron';">ENCRYPTED LINE</span>
+                <button class="cosmic-btn" style="width: auto; padding: 10px 20px; font-size: 0.7rem; margin: 0;" onclick="showTxModal()">SEND TON</button>
+            </div>
+            <div class="chat-stream" id="chat-msgs"></div>
+            <div style="padding: 20px; background: #000; display: flex; gap: 15px;">
+                <input type="text" id="chat-inp" class="cosmic-input" style="margin:0;" placeholder="Enter message...">
+                <button class="cosmic-btn" style="width: 80px; margin:0;" onclick="sendBroadcast()">></button>
+            </div>
+        </div>
+    </div>
+
+    <nav class="dock">
+        <div class="dock-item active" onclick="tab('wallet', event)">WALLET</div>
+        <div class="dock-item" onclick="tab('chat', event)">CHATS</div>
+    </nav>
+</main>
+
+<div id="tx-overlay">
+    <div class="imperial-panel">
+        <h1>TRANSACTION</h1>
+        <input type="number" id="tx-amount" class="cosmic-input" placeholder="AMOUNT (TON)" oninput="calcSplit()">
+        
+        <div style="border: 1px dashed var(--c); padding: 25px; margin-bottom: 30px; text-align: left; font-size: 0.9rem;">
+            <div style="display:flex; justify-content: space-between; margin-bottom: 15px;">
+                <span>RECIPIENT (90%):</span> <span id="split-recip" style="color: var(--success);">0.00 TON</span>
+            </div>
+            <div style="display:flex; justify-content: space-between; color: var(--danger);">
+                <span>TREASURY (10%):</span> <span id="split-fee">0.00 TON</span>
+            </div>
+        </div>
+
+        <button class="cosmic-btn" onclick="signEmpireTx()">AUTHORIZE BROADCAST</button>
+        <button class="cosmic-btn btn-red" onclick="document.getElementById('tx-overlay').style.display='none'">ABORT</button>
+    </div>
+</div>
+
+<script>
+    const TREASURY_ADDR = "UQB0HK2LubFblnzTNWjuchU0CtFjEfFrlRXO23YkwVKaoyHQ";
+    let tonUI, wallet = null, activeUser = null;
+
+    // ============================================================
+    //  MANIFEST — создаём inline через data: URI
+    //  Это гарантирует что в TON Wallet пишется "DENISIA PAY"
+    // ============================================================
+    function buildManifestUrl() {
+        const manifest = {
+            url: "https://denisia.github.io",          // сайт проекта (замените на реальный)
+            name: "DENISIA PAY",                        // имя приложения в TON Wallet
+            iconUrl: "https://i.imgur.com/placeholder.png", // замените на реальный логотип PNG
+            termsOfUseUrl: "https://denisia.github.io/terms",
+            privacyPolicyUrl: "https://denisia.github.io/privacy"
+        };
+        const json = JSON.stringify(manifest);
+        const b64 = btoa(unescape(encodeURIComponent(json)));
+        return "data:application/json;base64," + b64;
+    }
+
+    // ============================================================
+    //  THREE.JS BACKGROUND
+    // ============================================================
+    function initCosmos() {
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(innerWidth, innerHeight);
+        document.getElementById('canvas-bg').appendChild(renderer.domElement);
+
+        const starGeo = new THREE.BufferGeometry();
+        const sp = [];
+        for (let i = 0; i < 15000; i++) sp.push((Math.random()-.5)*1500, (Math.random()-.5)*1500, (Math.random()-.5)*1500);
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+        const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0x00f0ff, size: 0.5 }));
+        scene.add(stars);
+
+        const shape = new THREE.Shape();
+        shape.moveTo(-4,-6); shape.lineTo(-4,6); shape.lineTo(1,6);
+        shape.bezierCurveTo(7,6, 7,-6, 1,-6); shape.lineTo(-4,-6);
+        const dGeo = new THREE.ExtrudeGeometry(shape, { depth:2, bevelEnabled:true, bevelThickness:0.5 });
+        const dMat = new THREE.MeshBasicMaterial({ color:0x00f0ff, wireframe:true, transparent:true, opacity:0.3 });
+        const dMesh = new THREE.Mesh(dGeo, dMat);
+        dMesh.position.set(0, 0, -25);
+        scene.add(dMesh);
+
+        (function loop() {
+            requestAnimationFrame(loop);
+            dMesh.rotation.y += 0.015;
+            dMesh.rotation.x += 0.005;
+            stars.rotation.y += 0.0002;
+            renderer.render(scene, camera);
+        })();
+    }
+
+    // ============================================================
+    //  FLOW
+    // ============================================================
+    function openRegistry() {
+        gsap.to("#gate-screen", { opacity: 0, duration: 0.6, onComplete: () => {
+            document.getElementById('gate-screen').style.display = 'none';
+            document.getElementById('reg-screen').style.display = 'flex';
+            gsap.to("#reg-screen", { opacity: 1, duration: 0.6 });
+        }});
+    }
+
+    function launchEmpire() {
+        const alias = document.getElementById('alias-input').value.trim();
+        if (alias.length < 3) return;
+        if (alias.toLowerCase() === "taken") {
+            document.getElementById('alias-err').style.display = 'block';
+            return;
+        }
+        gsap.to("#reg-screen", { opacity: 0, duration: 0.6, onComplete: () => {
+            document.getElementById('reg-screen').style.display = 'none';
+            document.getElementById('app-root').style.display = 'flex';
+            gsap.to("#app-root", { opacity: 1, duration: 1 });
+            initTonConnect();
+        }});
+    }
+
+    // ============================================================
+    //  TON CONNECT — главная функция
+    // ============================================================
+    function initTonConnect() {
+        tonUI = new TON_CONNECT_UI.TonConnectUI({
+            // ← Передаём наш манифест с именем DENISIA PAY
+            manifestUrl: buildManifestUrl(),
+            // Скрытый контейнер (мы рисуем свою кнопку)
+            buttonRootId: 'ton-port'
+        });
+
+        // Слушаем изменение статуса кошелька
+        tonUI.onStatusChange(w => {
+            wallet = w;
+            if (w) {
+                onWalletConnected(w);
+            } else {
+                onWalletDisconnected();
+            }
+        });
+    }
+
+    // ============================================================
+    //  КАСТОМНАЯ КНОПКА — обработчик нажатия
+    // ============================================================
+    async function handleWalletBtn() {
+        if (!tonUI) return;
+
+        if (wallet) {
+            // Кошелёк подключён → открываем меню (отключить / сменить)
+            tonUI.openModal();
+        } else {
+            // Кошелёк НЕ подключён → открываем список кошельков TON
+            // openModal() показывает QR + список кошельков (Tonkeeper, MyTonWallet и т.д.)
+            tonUI.openModal();
+        }
+    }
+
+    function onWalletConnected(w) {
+        const addr = w.account.address;
+        const short = addr.slice(0, 6) + "..." + addr.slice(-4);
+
+        // Обновляем кнопку
+        const btn = document.getElementById('connect-btn-custom');
+        btn.classList.add('connected');
+        document.getElementById('connect-btn-label').textContent = short;
+
+        // Статус-бар
+        const bar = document.getElementById('wallet-status-bar');
+        bar.classList.add('ok');
+        document.getElementById('wallet-status-text').textContent = "WALLET LINKED: " + short;
+
+        // Карточка баланса
+        document.getElementById('addr-id').textContent = "ID: " + addr;
+        document.getElementById('hero-bal').textContent = "● LINKED";  // реальный баланс требует API
+    }
+
+    function onWalletDisconnected() {
+        wallet = null;
+
+        const btn = document.getElementById('connect-btn-custom');
+        btn.classList.remove('connected');
+        document.getElementById('connect-btn-label').textContent = "CONNECT WALLET";
+
+        const bar = document.getElementById('wallet-status-bar');
+        bar.classList.remove('ok');
+        document.getElementById('wallet-status-text').textContent = "WALLET NOT CONNECTED — TAP TO LINK TON WALLET";
+
+        document.getElementById('addr-id').textContent = "ID: UNKNOWN_ENTITY";
+        document.getElementById('hero-bal').textContent = "0.00 TON";
+    }
+
+    // ============================================================
+    //  NAVIGATION
+    // ============================================================
+    function tab(t, ev) {
+        document.querySelectorAll('.main-scroller').forEach(v => v.style.display = 'none');
+        document.querySelectorAll('.dock-item').forEach(i => i.classList.remove('active'));
+        document.getElementById('view-' + t).style.display = t === 'chat' ? 'flex' : 'block';
+        if (ev && ev.currentTarget) ev.currentTarget.classList.add('active');
+    }
+
+    function findCitizens() {
+        const q = document.getElementById('search-bar').value;
+        const res = document.getElementById('search-results');
+        if (q.length > 2) {
+            res.innerHTML = `<div class="cosmic-btn" onclick="openLine('${q}')">CONNECT TO CITIZEN: ${q}</div>`;
+        } else {
+            res.innerHTML = "";
+        }
+    }
+
+    function openLine(alias) {
+        activeUser = alias;
+        document.getElementById('chat-alias').textContent = "LINE: " + alias;
+        document.getElementById('chat-interface').style.display = 'flex';
+        tab('chat');
+        document.getElementById('chat-msgs').innerHTML =
+            `<div class="msg-bubble sys">Secure transmission with ${alias} established.</div>`;
+    }
+
+    function sendBroadcast() {
+        const inp = document.getElementById('chat-inp');
+        if (!inp.value) return;
+        document.getElementById('chat-msgs').innerHTML +=
+            `<div class="msg-bubble me">${inp.value}</div>`;
+        document.getElementById('chat-msgs').scrollTop = 999999;
+        inp.value = "";
+    }
+
+    // ============================================================
+    //  ТРАНЗАКЦИЯ
+    // ============================================================
+    function showTxModal() {
+        if (!wallet) {
+            // Если кошелёк не подключён — сначала подключаем
+            tonUI.openModal();
+            return;
+        }
+        document.getElementById('tx-overlay').style.display = 'flex';
+    }
+
+    function calcSplit() {
+        const val = parseFloat(document.getElementById('tx-amount').value) || 0;
+        document.getElementById('split-recip').textContent = (val * 0.9).toFixed(2) + " TON";
+        document.getElementById('split-fee').textContent   = (val * 0.1).toFixed(2) + " TON";
+    }
+
+    async function signEmpireTx() {
+        const val = parseFloat(document.getElementById('tx-amount').value);
+        if (!val || !wallet) {
+            alert("CONNECT WALLET & SPECIFY AMOUNT");
+            return;
+        }
+
+        const mainNano      = Math.round(val * 0.9 * 1e9).toString();
+        const treasuryNano  = Math.round(val * 0.1 * 1e9).toString();
+
+        const tx = {
+            validUntil: Math.floor(Date.now() / 1000) + 60,
+            messages: [
+                { address: "RECIPIENT_ADDRESS_HERE", amount: mainNano },
+                { address: TREASURY_ADDR,            amount: treasuryNano }
+            ]
+        };
+
+        try {
+            await tonUI.sendTransaction(tx);
+            alert("EMPIRE PROTOCOL: SUCCESSFUL BROADCAST");
+            document.getElementById('tx-overlay').style.display = 'none';
+        } catch (e) {
+            alert("TRANSMISSION ABORTED");
+        }
+    }
+
+    window.onload = initCosmos;
+</script>
+</body>
+</html>

@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>DENISIA PAY | COSMOS BANK</title>
+<script src="https://unpkg.com/@tonconnect/ui@2.0.6/dist/tonconnect-ui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:#000;font-family:'Segoe UI',sans-serif;overflow:hidden;height:100vh;background:#000;}
+#canvas-bg{position:fixed;inset:0;z-index:0;}
+
+.screen{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;}
+.panel{background:rgba(0,5,10,0.95);border:2px solid #00f0ff;box-shadow:0 0 35px #00f0ff, inset 0 0 20px rgba(0,240,255,0.1);border-radius:20px;padding:35px;width:92%;max-width:480px;text-align:center;backdrop-filter:blur(8px);}
+.logo-txt{color:#00f0ff;text-shadow:0 0 20px #00f0ff,0 0 40px rgba(0,240,255,0.5);font-size:24px;margin-bottom:15px;letter-spacing:4px;font-weight:bold;}
+.sub-txt{font-size:11px;color:#00aaff;letter-spacing:2px;margin-bottom:20px;}
+
+.inp{width:100%;padding:14px;background:#000;border:1px solid #00f0ff;color:#00f0ff;border-radius:8px;outline:none;font-family:monospace;font-size:14px;margin-bottom:15px;}
+.inp:focus{border-color:#00ff88;box-shadow:0 0 15px #00f0ff;}
+
+.btn{width:100%;padding:15px;background:transparent;border:2px solid #00f0ff;color:#00f0ff;border-radius:8px;cursor:pointer;font-weight:bold;font-size:14px;transition:0.3s;}
+.btn:hover{background:#00f0ff;box-shadow:0 0 25px #00f0ff;color:#000;}
+.btn-ok{background:#00ff88;border-color:#00ff88;color:#000;}
+.btn-ok:hover{box-shadow:0 0 25px #00ff88;}
+.btn-no{background:transparent;border-color:#ff4444;color:#ff4444;}
+.btn-no:hover{background:#ff4444;color:#000;box-shadow:0 0 25px #ff4444;}
+.btn-sm{padding:8px 15px;width:auto;font-size:12px;}
+.btn-row{display:flex;gap:12px;margin-top:15px;}
+
+#app{display:none;height:100vh;flex-direction:column;position:relative;z-index:10;}
+.topbar{background:rgba(0,0,0,0.95);border-bottom:1px solid #00f0ff;padding:13px 20px;display:flex;justify-content:space-between;align-items:center;}
+.brand{font-size:1.2rem;font-weight:bold;letter-spacing:4px;color:#00f0ff;text-shadow:0 0 10px #00f0ff;}
+.wstat{font-size:11px;color:#00aaff;cursor:pointer;padding:5px 12px;border:1px solid #00aaff;border-radius:20px;}
+.wstat.ok{color:#00ff88;border-color:#00ff88;}
+
+.layout{display:flex;flex:1;overflow:hidden;}
+.sidebar{width:200px;background:rgba(0,0,0,0.95);border-right:1px solid #00f0ff;padding:16px;display:flex;flex-direction:column;gap:9px;}
+.nbtn{background:transparent;border:1px solid rgba(0,240,255,0.3);padding:12px;text-align:center;color:#00f0ff;cursor:pointer;font-weight:bold;font-size:12px;border-radius:8px;}
+.nbtn:hover,.nbtn.active{background:rgba(0,240,255,0.15);border-color:#00f0ff;box-shadow:0 0 10px rgba(0,240,255,0.3);}
+
+.content{flex:1;overflow-y:auto;padding:20px;}
+.card{background:rgba(0,8,15,0.95);border:1px solid #00f0ff;border-radius:15px;padding:20px;margin-bottom:16px;box-shadow:0 0 10px rgba(0,240,255,0.1);}
+.card-title{font-size:11px;letter-spacing:3px;color:#00aaff;margin-bottom:14px;}
+.bal-num{font-size:2rem;font-weight:bold;color:#00ff88;text-shadow:0 0 15px #00ff88;margin:10px 0;text-align:center;}
+.addr-row{background:#000;border:1px dashed #00f0ff;padding:10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;}
+
+.crypto-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:15px 0;}
+.crypto-card{background:rgba(0,240,255,0.08);border:1px solid #00f0ff;border-radius:12px;padding:12px;text-align:center;cursor:pointer;transition:0.2s;}
+.crypto-card:hover{background:rgba(0,240,255,0.2);transform:scale(1.02);box-shadow:0 0 15px rgba(0,240,255,0.3);}
+.crypto-card.selected{border-color:#00ff88;background:rgba(0,255,136,0.15);box-shadow:0 0 15px #00ff88;}
+.crypto-sym{font-size:18px;font-weight:bold;color:#00f0ff;}
+.crypto-name{font-size:10px;color:#66aaff;margin-top:4px;}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,0.98);z-index:2000;display:none;align-items:center;justify-content:center;}
+.modal.show{display:flex;}
+.mbox{background:rgba(0,10,20,0.98);border:2px solid #00f0ff;border-radius:20px;padding:30px;width:90%;max-width:450px;text-align:center;box-shadow:0 0 40px rgba(0,240,255,0.3);}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#000;border:2px solid #00f0ff;color:#00f0ff;padding:10px 20px;border-radius:20px;z-index:9999;font-size:12px;box-shadow:0 0 15px #00f0ff;}
+
+.transaction-preview{background:rgba(0,0,0,0.6);border-radius:12px;padding:15px;margin:15px 0;border:1px solid #00f0ff;}
+.preview-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #004466;}
+.preview-label{color:#66aaff;}
+.preview-value{color:#00ff88;font-weight:bold;}
+.commission{color:#ffaa00;}
+
+.ulist{display:flex;flex-direction:column;gap:8px;margin-top:15px;}
+.uitem{background:rgba(0,240,255,0.05);border:1px solid #00f0ff;border-radius:10px;padding:12px;cursor:pointer;transition:0.2s;}
+.uitem:hover{background:rgba(0,240,255,0.15);transform:translateX(5px);box-shadow:0 0 10px rgba(0,240,255,0.2);}
+.unm{font-weight:bold;font-size:14px;color:#00f0ff;}
+
+.chat-box{background:#000;border:2px solid #00f0ff;border-radius:15px;display:flex;flex-direction:column;height:68vh;}
+.chat-hdr{padding:15px;border-bottom:1px solid #00f0ff;background:rgba(0,240,255,0.05);display:flex;justify-content:space-between;}
+.chat-msgs{flex:1;overflow-y:auto;padding:15px;display:flex;flex-direction:column;gap:8px;}
+.msg{padding:10px;border:1px solid #00f0ff;border-radius:10px;max-width:70%;}
+.msg.me{align-self:flex-end;background:rgba(0,240,255,0.1);border-color:#00ff88;}
+.msg.system{align-self:center;background:rgba(255,170,0,0.1);border-color:#ffaa00;color:#ffaa00;}
+.chat-inp-row{display:flex;padding:15px;border-top:1px solid #00f0ff;gap:8px;}
+.chat-inp-row input{flex:1;background:#000;border:1px solid #00f0ff;padding:12px;border-radius:8px;color:#00f0ff;}
+.chat-inp-row input:focus{outline:none;border-color:#00ff88;}
+
+.wallet-scanner-modal .mbox{max-width:500px;}
+.wallet-type-badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:10px;margin:5px;background:rgba(0,240,255,0.1);border:1px solid #00f0ff;}
+</style>
+</head>
+<body>
+<canvas id="canvas-bg"></canvas>
+
+<!-- TERMS SCREEN -->
+<div id="s-terms" class="screen">
+  <div class="panel">
+    <div class="logo-txt">DENISIA PAY</div>
+    <div class="sub-txt">⚡ SUPREME COSMOS BANK ⚡</div>
+    <div style="max-height:150px;overflow-y:auto;text-align:left;border:1px solid #00f0ff;border-radius:10px;padding:12px;margin:15px 0;font-size:10px;color:#88ccff;">
+      <div><b>⚠️ DISCLAIMER:</b> DENISIA Pay takes 10% commission on every transaction. 90% goes to recipient.</div>
+      <div style="margin-top:8px;"><b>📌 FEATURES:</b> Connect any wallet, Send crypto, Private chat, Real balance</div>
+    </div>
+    <input type="text" id="reg-name" class="inp" placeholder="ENTER YOUR NAME">
+    <div id="reg-status" style="font-size:11px;margin-bottom:10px;color:#00f0ff;"></div>
+    <button class="btn btn-ok" onclick="registerUser()">⚡ START DENISIA PAY</button>
+  </div>
+</div>
+
+<!-- WALLET SCANNER CONNECT SCREEN -->
+<div id="s-wallet" class="screen" style="display:none;">
+  <div class="panel">
+    <div class="logo-txt" style="font-size:18px;">🔗 CONNECT WALLET</div>
+    <div class="sub-txt">PASTE YOUR WALLET ADDRESS</div>
+    <input type="text" id="wallet-address" class="inp" placeholder="EQ... / UQ... / 0x... / bc1...">
+    <div id="wallet-scan-status" style="font-size:11px;margin-bottom:10px;color:#00aaff;"></div>
+    <button class="btn" onclick="scanAndConnectWallet()">🔍 SCAN & CONNECT</button>
+    <div id="wallet-scan-result" style="margin-top:15px;display:none;">
+      <div id="wallet-type-display" style="font-size:10px;color:#00aaff;margin-bottom:5px;"></div>
+      <div id="wallet-balance-display" style="font-size:20px;color:#00ff88;font-weight:bold;"></div>
+    </div>
+    <button class="btn" style="margin-top:15px;opacity:0.6;" onclick="skipWalletConnection()">SKIP →</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="brand">DENISIA PAY</div>
+    <div id="walletBtn" class="wstat" onclick="openWalletScanner()">⚡ CONNECT</div>
+  </div>
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nbtn active" onclick="switchTab('wallet',this)">🏦 WALLET</div>
+      <div class="nbtn" onclick="switchTab('search',this)">🔍 SEARCH</div>
+      <div class="nbtn" onclick="switchTab('chats',this)">💬 CHATS</div>
+      <div class="nbtn" onclick="logout()">⛔ EXIT</div>
+    </div>
+    <div class="content">
+
+      <!-- WALLET TAB -->
+      <div id="tab-wallet">
+        <div class="card">
+          <div class="card-title">DENISIA CITIZEN</div>
+          <div id="userName" style="font-size:1.1rem;font-weight:700;color:#00f0ff;">---</div>
+          <div class="addr-row">
+            <span id="userId" style="color:#00aaff;">---</span>
+            <button class="btn btn-sm" onclick="copyUserId()">COPY ID</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">💰 WALLET BALANCE</div>
+          <div class="bal-num" id="userBalance">0.0000 TON</div>
+          <div id="userWalletAddr" style="font-size:10px;color:#00aaff;margin-top:8px;word-break:break-all;"></div>
+          <button class="btn btn-sm" style="margin-top:10px;" onclick="refreshBalance()">↻ REFRESH</button>
+        </div>
+      </div>
+
+      <!-- SEARCH TAB -->
+      <div id="tab-search" style="display:none;">
+        <div class="card">
+          <div class="card-title">🔍 FIND CITIZENS</div>
+          <input type="text" id="searchInput" class="inp" placeholder="SEARCH BY NAME..." oninput="searchCitizens()">
+          <div id="searchResult" style="margin-top:10px;display:none;"></div>
+          <div id="usersList" class="ulist"></div>
+        </div>
+      </div>
+
+      <!-- CHATS TAB -->
+      <div id="tab-chats" style="display:none;">
+        <div class="card">
+          <div class="card-title">💬 MY CHATS</div>
+          <div id="chatsList" class="ulist"></div>
+        </div>
+      </div>
+
+      <!-- CHAT TAB -->
+      <div id="tab-chat" style="display:none;">
+        <div class="chat-box">
+          <div class="chat-hdr">
+            <span id="chatUserName" style="font-weight:700;color:#00f0ff;">---</span>
+            <div>
+              <button class="btn btn-sm" onclick="openSendModal()">💸 SEND</button>
+              <button class="btn btn-sm" style="margin-left:8px;" onclick="closeChatPanel()">← BACK</button>
+            </div>
+          </div>
+          <div id="chatMessages" class="chat-msgs"></div>
+          <div class="chat-inp-row">
+            <input type="text" id="chatInput" placeholder="TYPE MESSAGE..." onkeypress="if(event.key==='Enter')sendChatMessage()">
+            <button class="btn btn-sm" onclick="sendChatMessage()">SEND</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- PERMISSION MODAL -->
+<div id="modal-permission" class="modal">
+  <div class="mbox">
+    <div style="font-size:18px;font-weight:bold;margin-bottom:15px;color:#00f0ff;">🔐 PERMISSION REQUIRED</div>
+    <div style="font-size:14px;margin-bottom:20px;color:#88ccff;">Allow DENISIA Pay to connect to your wallet?</div>
+    <div class="btn-row">
+      <button class="btn btn-ok" onclick="approveWalletConnection()">✓ ALLOW</button>
+      <button class="btn btn-no" onclick="denyWalletConnection()">✕ DENY</button>
+    </div>
+  </div>
+</div>
+
+<!-- SEND CRYPTO MODAL -->
+<div id="modalSend" class="modal">
+  <div class="mbox">
+    <div style="font-size:18px;font-weight:bold;margin-bottom:15px;color:#00f0ff;">💸 SEND CRYPTO</div>
+    <div style="font-size:12px;color:#88ccff;">TO: <span id="sendToName" style="color:#00ff88;"></span></div>
+    
+    <div class="crypto-grid">
+      <div class="crypto-card" onclick="selectCrypto('TON')" id="crypto-TON">
+        <div class="crypto-sym">TON</div>
+        <div class="crypto-name">Toncoin</div>
+      </div>
+      <div class="crypto-card" onclick="selectCrypto('USDT')" id="crypto-USDT">
+        <div class="crypto-sym">USDT</div>
+        <div class="crypto-name">Tether</div>
+      </div>
+      <div class="crypto-card" onclick="selectCrypto('BTC')" id="crypto-BTC">
+        <div class="crypto-sym">BTC</div>
+        <div class="crypto-name">Bitcoin</div>
+      </div>
+    </div>
+    
+    <input type="number" id="sendAmount" class="inp" placeholder="AMOUNT" step="0.01" style="margin:15px 0;" oninput="updatePreview()">
+    
+    <div class="transaction-preview" id="sendPreview" style="display:none;">
+      <div class="preview-row"><span class="preview-label">AMOUNT:</span><span class="preview-value" id="previewAmount">0</span></div>
+      <div class="preview-row commission"><span class="preview-label">COMMISSION (10%):</span><span class="preview-value" id="previewFee">0</span></div>
+      <div class="preview-row"><span class="preview-label">RECIPIENT GETS (90%):</span><span class="preview-value" id="previewRecipient">0</span></div>
+    </div>
+    
+    <div class="btn-row">
+      <button class="btn btn-ok" onclick="showCommissionModal()">📤 PROCEED</button>
+      <button class="btn btn-no" onclick="closeModal('modalSend')">✕ CANCEL</button>
+    </div>
+    <div id="sendError" style="font-size:11px;color:#ff4444;margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- COMMISSION MODAL -->
+<div id="modalCommission" class="modal">
+  <div class="mbox">
+    <div style="font-size:18px;font-weight:bold;margin-bottom:15px;color:#ffaa00;">⚠️ 10% COMMISSION</div>
+    <div style="font-size:13px;margin-bottom:20px;line-height:1.6;color:#88ccff;">
+      By sending this transaction you agree:<br><br>
+      <span style="color:#ffaa00;">🔹 10% COMMISSION</span> → DENISIA Treasury<br>
+      <span style="color:#00ff88;">🔹 90%</span> → Recipient<br><br>
+      Confirm transaction?
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-ok" onclick="executeSend()">✓ CONFIRM</button>
+      <button class="btn btn-no" onclick="closeModal('modalCommission')">✕ CANCEL</button>
+    </div>
+  </div>
+</div>
+
+<!-- INCOMING MODAL -->
+<div id="modalIncoming" class="modal">
+  <div class="mbox">
+    <div style="font-size:18px;font-weight:bold;margin-bottom:15px;color:#00ff88;">💎 INCOMING TRANSFER</div>
+    <div id="incomingContent" style="font-size:13px;margin-bottom:20px;color:#88ccff;"></div>
+    <div class="btn-row">
+      <button class="btn btn-ok" onclick="acceptIncoming()">✓ ACCEPT</button>
+      <button class="btn btn-no" onclick="declineIncoming()">✕ DECLINE</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ========== CONFIG ==========
+const JSONBIN_URL = "https://api.jsonbin.io/v3/b/69cdc71aaaba882197b80267";
+const JSONBIN_KEY = "$2a$10$piBi/4TcAsEwd6rVS6q7/OeIoKMgU9X6ygr6GEpmvK/M5dDBQ/I8y";
+const TREASURY = "UQB0HK2LubFblnzTNWjuchU0CtFjEfFrlRXO23YkwVKaoyHQ";
+const MANIFEST = "https://denis19sl02-sketch.github.io/DENISIA-Pay/tonconnect-manifest.json";
+
+// ========== GLOBAL ==========
+let currentUser = null;
+let tonUI = null;
+let connectedWallet = null;
+let currentChatPeer = null;
+let selectedCrypto = 'TON';
+let chatInterval = null;
+let pendingInterval = null;
+let pendingWalletData = null;
+
+// ========== 3D BACKGROUND ==========
+function init3D() {
+    const canvas = document.getElementById('canvas-bg');
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 4000);
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    camera.position.z = 1500;
+    
+    const stars = [];
+    for (let i = 0; i < 15000; i++) {
+        stars.push((Math.random() - 0.5) * 4000);
+        stars.push((Math.random() - 0.5) * 4000);
+        stars.push((Math.random() - 0.5) * 4000);
+    }
+    const starGeo = new THREE.BufferGeometry();
+    starGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(stars), 3));
+    scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0x00aaff, size: 1.2 })));
+    
+    const shape = new THREE.Shape();
+    shape.moveTo(-150, -250);
+    shape.lineTo(-150, 250);
+    shape.lineTo(50, 250);
+    shape.bezierCurveTo(300, 250, 300, -250, 50, -250);
+    shape.lineTo(-150, -250);
+    const hole = new THREE.Path();
+    hole.moveTo(-80, -180);
+    hole.lineTo(-80, 180);
+    hole.lineTo(30, 180);
+    hole.bezierCurveTo(200, 180, 200, -180, 30, -180);
+    hole.lineTo(-80, -180);
+    shape.holes.push(hole);
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: 70, bevelEnabled: true });
+    geo.center();
+    const dMesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({ color: 0x00aaff, emissive: 0x004466, shininess: 100 }));
+    dMesh.scale.set(1.3, 1.3, 1.3);
+    scene.add(dMesh);
+    scene.add(new THREE.AmbientLight(0x002233));
+    const light = new THREE.PointLight(0x00aaff, 1.5);
+    light.position.set(300, 300, 700);
+    scene.add(light);
+    
+    let t = 0;
+    function animate() {
+        requestAnimationFrame(animate);
+        t += 0.008;
+        dMesh.rotation.y = Math.sin(t * 0.3) * 0.2 + t * 0.05;
+        dMesh.rotation.x = Math.sin(t * 0.25) * 0.1;
+        renderer.render(scene, camera);
+    }
+    animate();
+    window.addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+}
+
+// ========== DATABASE ==========
+async function loadDB() {
+    try {
+        const res = await fetch(JSONBIN_URL + '/latest', { headers: { 'X-Access-Key': JSONBIN_KEY } });
+        const data = await res.json();
+        const db = data.record?.users || {};
+        if (!db._chats) db._chats = {};
+        if (!db._pending) db._pending = [];
+        return db;
+    } catch(e) { return { _chats: {}, _pending: [] }; }
+}
+
+async function saveDB(db) {
+    try {
+        await fetch(JSONBIN_URL, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-Access-Key': JSONBIN_KEY }, body: JSON.stringify({ users: db }) });
+        return true;
+    } catch(e) { return false; }
+}
+
+// ========== REGISTRATION ==========
+async function registerUser() {
+    const name = document.getElementById('reg-name').value.trim();
+    const statusDiv = document.getElementById('reg-status');
+    if (name.length < 2) { statusDiv.innerHTML = '❌ Name too short'; return; }
+    statusDiv.innerHTML = '⏳ Checking...';
+    const db = await loadDB();
+    const users = Object.values(db).filter(u => u && typeof u === 'object' && u.name);
+    if (users.some(u => u.name.toLowerCase() === name.toLowerCase())) {
+        statusDiv.innerHTML = '❌ Name already taken!';
+        return;
+    }
+    const userId = 'DEN_' + name.slice(0,3).toUpperCase() + '_' + Math.random().toString(36).slice(2,8).toUpperCase();
+    currentUser = { name, id: userId, wallet: null, created: Date.now() };
+    db[userId] = currentUser;
+    await saveDB(db);
+    localStorage.setItem('denisia_user', JSON.stringify(currentUser));
+    statusDiv.innerHTML = '✅ Registered!';
+    setTimeout(() => { document.getElementById('s-terms').style.display = 'none'; document.getElementById('s-wallet').style.display = 'flex'; }, 500);
+}
+
+// ========== WALLET SCANNER ==========
+async function scanAndConnectWallet() {
+    const address = document.getElementById('wallet-address').value.trim();
+    const statusDiv = document.getElementById('wallet-scan-status');
+    const resultDiv = document.getElementById('wallet-scan-result');
+    const typeDiv = document.getElementById('wallet-type-display');
+    const balanceDiv = document.getElementById('wallet-balance-display');
+    
+    if (!address) { statusDiv.innerHTML = '❌ Enter wallet address'; return; }
+    statusDiv.innerHTML = '🔍 Scanning...';
+    resultDiv.style.display = 'block';
+    
+    let walletType = 'UNKNOWN';
+    let balance = 0;
+    let found = false;
+    
+    if (address.startsWith('EQ') || address.startsWith('UQ')) {
+        walletType = 'TON NETWORK';
+        typeDiv.innerHTML = '🔷 TON NETWORK DETECTED';
+        try {
+            const res = await fetch(`https://toncenter.com/api/v2/getAddressBalance?address=${address}`);
+            const data = await res.json();
+            if (data.ok) {
+                balance = parseFloat(data.result) / 1e9;
+                balanceDiv.innerHTML = balance.toFixed(4) + ' TON';
+                found = true;
+                statusDiv.innerHTML = '✅ Wallet found on blockchain!';
+            } else {
+                balanceDiv.innerHTML = '❌ Invalid address';
+                statusDiv.innerHTML = '❌ Wallet not found';
+            }
+        } catch(e) { balanceDiv.innerHTML = 'Network error'; statusDiv.innerHTML = '❌ Connection error'; }
+    }
+    else if (address.startsWith('0x')) {
+        walletType = 'EVM NETWORK';
+        typeDiv.innerHTML = '🔷 EVM NETWORK DETECTED (ETH/BNB)';
+        balanceDiv.innerHTML = 'EVM Address Valid';
+        found = true;
+        statusDiv.innerHTML = '✅ EVM wallet format valid';
+    }
+    else if (address.startsWith('bc1')) {
+        walletType = 'BITCOIN NETWORK';
+        typeDiv.innerHTML = '🔷 BITCOIN NETWORK DETECTED';
+        balanceDiv.innerHTML = 'BTC Address Valid';
+        found = true;
+        statusDiv.innerHTML = '✅ Bitcoin wallet format valid';
+    }
+    else {
+        typeDiv.innerHTML = '❌ UNKNOWN FORMAT';
+        balanceDiv.innerHTML = 'Invalid wallet format';
+        statusDiv.innerHTML = '❌ Unsupported wallet type';
+    }
+    
+    if (found) {
+        pendingWalletData = { type: walletType, address: address, balance: balance };
+        document.getElementById('modal-permission').classList.add('show');
+    }
+}
+
+function approveWalletConnection() {
+    document.getElementById('modal-permission').classList.remove('show');
+    if (pendingWalletData) {
+        if (pendingWalletData.type === 'TON NETWORK') {
+            window.location.href = `tonkeeper://wallet/${pendingWalletData.address}`;
+        } else if (pendingWalletData.type === 'EVM NETWORK') {
+            window.location.href = `trust://address/${pendingWalletData.address}`;
+        } else if (pendingWalletData.type === 'BITCOIN NETWORK') {
+            window.open(`https://www.blockchain.com/explorer/addresses/btc/${pendingWalletData.address}`, '_blank');
+        }
+        
+        if (currentUser) {
+            currentUser.wallet = pendingWalletData.address;
+            localStorage.setItem('denisia_user', JSON.stringify(currentUser));
+            updateUserInDB();
+        }
+        
+        document.getElementById('userWalletAddr').innerHTML = pendingWalletData.address;
+        if (pendingWalletData.balance) document.getElementById('userBalance').innerHTML = pendingWalletData.balance.toFixed(4) + ' TON';
+        document.getElementById('walletBtn').innerHTML = '🔗 ' + pendingWalletData.address.slice(0,6) + '...' + pendingWalletData.address.slice(-4);
+        document.getElementById('walletBtn').classList.add('ok');
+        
+        showToast('✅ Wallet connected successfully!');
+        setTimeout(() => { document.getElementById('s-wallet').style.display = 'none'; bootApp(); }, 800);
+    }
+}
+
+function denyWalletConnection() {
+    document.getElementById('modal-permission').classList.remove('show');
+    pendingWalletData = null;
+    showToast('Connection denied');
+    setTimeout(() => { document.getElementById('s-wallet').style.display = 'none'; bootApp(); }, 500);
+}
+
+function skipWalletConnection() {
+    document.getElementById('s-wallet').style.display = 'none';
+    bootApp();
+}
+
+// ========== TON CONNECT ==========
+function initTonConnect() {
+    if (tonUI) return;
+    try {
+        tonUI = new TON_CONNECT_UI.TonConnectUI({ manifestUrl: MANIFEST, buttonRootId: 'tc-h' });
+        tonUI.onStatusChange(wallet => {
+            connectedWallet = wallet;
+            if (wallet && wallet.account) {
+                const addr = wallet.account.address;
+                document.getElementById('walletBtn').innerHTML = '🔗 ' + addr.slice(0,6) + '...' + addr.slice(-4);
+                document.getElementById('walletBtn').classList.add('ok');
+                document.getElementById('userWalletAddr').innerHTML = addr;
+                if (currentUser && !currentUser.wallet) { currentUser.wallet = addr; updateUserInDB(); }
+                fetchBalance(addr);
+                showToast('✅ Wallet connected!');
+            }
+        });
+    } catch(e) {}
+}
+
+function openWalletScanner() {
+    if (connectedWallet) { if (confirm('Disconnect wallet?')) tonUI?.disconnect(); return; }
+    document.getElementById('s-wallet').style.display = 'flex';
+}
+
+async function fetchBalance(addr) {
+    try {
+        const res = await fetch(`https://toncenter.com/api/v2/getAddressBalance?address=${addr}`);
+        const data = await res.json();
+        if (data.ok) document.getElementById('userBalance').innerHTML = (parseFloat(data.result)/1e9).toFixed(4) + ' TON';
+    } catch(e) {}
+}
+
+function refreshBalance() { if (connectedWallet) fetchBalance(connectedWallet.account.address); else if (currentUser?.wallet) fetchBalance(currentUser.wallet); }
+
+async function updateUserInDB() {
+    const db = await loadDB();
+    db[currentUser.id] = currentUser;
+    await saveDB(db);
+}
+
+// ========== BOOT APP ==========
+function bootApp() {
+    document.getElementById('app').style.display = 'flex';
+    document.getElementById('userName').innerHTML = currentUser.name;
+    document.getElementById('userId').innerHTML = currentUser.id;
+    if (currentUser.wallet) {
+        document.getElementById('userWalletAddr').innerHTML = currentUser.wallet;
+        document.getElementById('walletBtn').innerHTML = '🔗 ' + currentUser.wallet.slice(0,6) + '...' + currentUser.wallet.slice(-4);
+        document.getElementById('walletBtn').classList.add('ok');
+        fetchBalance(currentUser.wallet);
+    }
+    loadUsersList();
+    loadChatsList();
+    startPendingChecker();
+    initTonConnect();
+}
+
+function logout() { localStorage.removeItem('denisia_user'); location.reload(); }
+function copyUserId() { if (currentUser?.id) { navigator.clipboard.writeText(currentUser.id); showToast('ID copied!'); } }
+
+// ========== SEARCH ==========
+async function searchCitizens() {
+    const query = document.getElementById('searchInput').value.trim().toLowerCase();
+    const resultDiv = document.getElementById('searchResult');
+    const listDiv = document.getElementById('usersList');
+    if (!query) { resultDiv.style.display = 'none'; loadUsersList(); return; }
+    const db = await loadDB();
+    const users = Object.values(db).filter(u => u && typeof u === 'object' && u.name && u.id !== currentUser.id);
+    const found = users.find(u => u.name.toLowerCase() === query);
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = found ? `<div style="color:#00ff88;">✅ FOUND: ${query}</div>` : `<div style="color:#ff4444;">❌ NOT FOUND</div>`;
+    listDiv.innerHTML = users.map(u => `<div class="uitem" onclick="openChat('${escapeHtml(u.name)}', '${u.id}')"><div class="unm">◈ ${escapeHtml(u.name)}</div><div style="font-size:10px;color:#00aaff;">${u.id}</div></div>`).join('');
+}
+
+async function loadUsersList() {
+    const db = await loadDB();
+    const users = Object.values(db).filter(u => u && typeof u === 'object' && u.name && u.id !== currentUser.id);
+    const listDiv = document.getElementById('usersList');
+    listDiv.innerHTML = users.map(u => `<div class="uitem" onclick="openChat('${escapeHtml(u.name)}', '${u.id}')"><div class="unm">◈ ${escapeHtml(u.name)}</div><div style="font-size:10px;color:#00aaff;">${u.id}</div></div>`).join('');
+    if(!users.length) listDiv.innerHTML = '<div style="color:#00aaff;text-align:center;padding:30px;">No other citizens yet</div>';
+}
+
+// ========== CHAT ==========
+async function openChat(name, id) {
+    currentChatPeer = { name, id };
+    document.getElementById('chatUserName').innerHTML = name;
+    switchTab('chat', document.querySelector('.nbtn'));
+    await loadMessages();
+    if (chatInterval) clearInterval(chatInterval);
+    chatInterval = setInterval(loadMessages, 3000);
+}
+
+function closeChatPanel() {
+    if (chatInterval) clearInterval(chatInterval);
+    chatInterval = null;
+    switchTab('chats', document.querySelector('.nbtn'));
+    loadChatsList();
+}
+
+function getChatKey() { return [currentUser.id, currentChatPeer.id].sort().join('__'); }
+
+async function loadMessages() {
+    if (!currentChatPeer) return;
+    const db = await loadDB();
+    const key = getChatKey();
+    const msgs = db._chats?.[key] || [];
+    const container = document.getElementById('chatMessages');
+    container.innerHTML = msgs.map(m => `<div class="msg ${m.from === currentUser.id ? 'me' : ''} ${m.isSystem ? 'system' : ''}"><b>${m.from === currentUser.id ? 'YOU' : currentChatPeer.name}</b><br>${escapeHtml(m.text)}<div style="font-size:9px;color:#00aaff;margin-top:3px;">${new Date(m.ts).toLocaleTimeString()}</div></div>`).join('');
+    container.scrollTop = container.scrollHeight;
+}
+
+async function sendChatMessage() {
+    const inp = document.getElementById('chatInput');
+    const txt = inp.value.trim();
+    if (!txt || !currentChatPeer) return;
+    inp.value = '';
+    const db = await loadDB();
+    const key = getChatKey();
+    if (!db._chats) db._chats = {};
+    if (!db._chats[key]) db._chats[key] = [];
+    db._chats[key].push({ from: currentUser.id, text: txt, ts: Date.now() });
+    await saveDB(db);
+    await loadMessages();
+}
+
+async function loadChatsList() {
+    const db = await loadDB();
+    const users = Object.values(db).filter(u => u && typeof u === 'object' && u.name && u.id !== currentUser.id);
+    const container = document.getElementById('chatsList');
+    container.innerHTML = users.map(u => `<div class="uitem" onclick="openChat('${escapeHtml(u.name)}', '${u.id}')"><div class="unm">◈ ${escapeHtml(u.name)}</div><div style="font-size:10px;color:#00aaff;">Click to chat</div></div>`).join('');
+    if(!users.length) container.innerHTML = '<div style="color:#00aaff;text-align:center;padding:30px;">No chats yet</div>';
+}
+
+// ========== SEND CRYPTO ==========
+function selectCrypto(crypto) {
+    selectedCrypto = crypto;
+    document.querySelectorAll('.crypto-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById(`crypto-${crypto}`).classList.add('selected');
+    updatePreview();
+}
+
+function updatePreview() {
+    const amount = parseFloat(document.getElementById('sendAmount').value) || 0;
+    const preview = document.getElementById('sendPreview');
+    if (amount > 0) {
+        preview.style.display = 'block';
+        document.getElementById('previewAmount').innerHTML = `${amount} ${selectedCrypto}`;
+        document.getElementById('previewFee').innerHTML = `${(amount * 0.1).toFixed(4)} ${selectedCrypto}`;
+        document.getElementById('previewRecipient').innerHTML = `${(amount * 0.9).toFixed(4)} ${selectedCrypto}`;
+    } else { preview.style.display = 'none'; }
+}
+
+function openSendModal() {
+    if (!currentChatPeer) { showToast('Select a user first'); return; }
+    document.getElementById('sendToName').innerHTML = currentChatPeer.name;
+    document.getElementById('sendAmount').value = '';
+    document.getElementById('sendError').innerHTML = '';
+    document.getElementById('sendPreview').style.display = 'none';
+    document.getElementById('modalSend').classList.add('show');
+}
+
+function showCommissionModal() {
+    const amount = parseFloat(document.getElementById('sendAmount').value);
+    if (!amount || amount <= 0) { document.getElementById('sendError').innerHTML = 'Enter valid amount'; return; }
+    if (!connectedWallet && !currentUser?.wallet) { document.getElementById('sendError').innerHTML = 'Connect wallet first!'; return; }
+    closeModal('modalSend');
+    document.getElementById('modalCommission').classList.add('show');
+}
+
+async function executeSend() {
+    closeModal('modalCommission');
+    const amount = parseFloat(document.getElementById('sendAmount').value);
+    const recipient = currentChatPeer;
+    const db = await loadDB();
+    const recipientData = Object.values(db).find(u => u.id === recipient.id);
+    if (!recipientData || !recipientData.wallet) { showToast('Recipient has no wallet'); return; }
+    if (!db._pending) db._pending = [];
+    db._pending.push({ id: Date.now(), from: currentUser.id, fromName: currentUser.name, to: recipient.id, toName: recipient.name, amount: amount, crypto: selectedCrypto, status: 'pending' });
+    await saveDB(db);
+    const key = getChatKey();
+    if (!db._chats) db._chats = {};
+    if (!db._chats[key]) db._chats[key] = [];
+    db._chats[key].push({ from: currentUser.id, text: `💸 CRYPTO OFFER: ${amount} ${selectedCrypto} sent to ${recipient.name} (waiting for acceptance)`, ts: Date.now(), isSystem: true });
+    await saveDB(db);
+    showToast(`💰 Offer sent to ${recipient.name}!`);
+    if (currentChatPeer && currentChatPeer.id === recipient.id) loadMessages();
+}
+
+// ========== PENDING ==========
+function startPendingChecker() {
+    if (pendingInterval) clearInterval(pendingInterval);
+    pendingInterval = setInterval(async () => {
+        const db = await loadDB();
+        const pending = db._pending?.find(p => p.to === currentUser?.id && p.status === 'pending');
+        if (pending) {
+            const idx = db._pending.findIndex(p => p.id === pending.id);
+            if (idx !== -1) db._pending[idx].status = 'shown';
+            await saveDB(db);
+            showIncoming(pending);
+        }
+    }, 3000);
+}
+
+function showIncoming(pending) {
+    document.getElementById('incomingContent').innerHTML = `
+        <div style="background:rgba(0,240,255,0.05);border-radius:12px;padding:15px;">
+            <div style="font-size:16px;color:#00f0ff;">${escapeHtml(pending.fromName)}</div>
+            <div>wants to send you:</div>
+            <div style="font-size:24px;color:#00ff88;margin:10px 0;">${pending.amount} ${pending.crypto}</div>
+            <div style="font-size:11px;color:#88ccff;">Commission 10% → ${(pending.amount * 0.1).toFixed(4)} ${pending.crypto}</div>
+            <div style="font-size:11px;color:#00ff88;">You receive → ${(pending.amount * 0.9).toFixed(4)} ${pending.crypto}</div>
+        </div>
+    `;
+    document.getElementById('modalIncoming').classList.add('show');
+    window.currentPending = pending;
+}
+
+async function acceptIncoming() {
+    const pending = window.currentPending;
+    closeModal('modalIncoming');
+    const db = await loadDB();
+    if (!currentUser.wallet) { showToast('Connect wallet first!'); return; }
+    const idx = db._pending.findIndex(p => p.id === pending.id);
+    if (idx !== -1) db._pending[idx].status = 'accepted';
+    await saveDB(db);
+    const sendAmount = Math.floor(pending.amount * 0.9 * 1e9);
+    const feeAmount = Math.floor(pending.amount * 0.1 * 1e9);
+    try {
+        if (tonUI) {
+            await tonUI.sendTransaction({ validUntil: Math.floor(Date.now()/1000)+300, messages: [{ address: currentUser.wallet, amount: sendAmount.toString() }, { address: TREASURY, amount: feeAmount.toString() }] });
+        }
+        const key = [pending.from, currentUser.id].sort().join('__');
+        if (!db._chats) db._chats = {};
+        if (!db._chats[key]) db._chats[key] = [];
+        db._chats[key].push({ from: 'system', text: `✅ TRANSACTION COMPLETED! ${pending.fromName} sent ${pending.amount} ${pending.crypto}.`, ts: Date.now(), isSystem: true });
+        await saveDB(db);
+        showToast(`✅ Received ${(pending.amount * 0.9).toFixed(4)} ${pending.crypto}!`);
+        if (currentChatPeer && currentChatPeer.id === pending.from) loadMessages();
+    } catch(e) { showToast('Transaction failed'); }
+}
+
+async function declineIncoming() {
+    const pending = window.currentPending;
+    closeModal('modalIncoming');
+    const db = await loadDB();
+    const idx = db._pending.findIndex(p => p.id === pending.id);
+    if (idx !== -1) db._pending[idx].status = 'declined';
+    await saveDB(db);
+    const key = [pending.from, pending.to].sort().join('__');
+    if (!db._chats) db._chats = {};
+    if (!db._chats[key]) db._chats[key] = [];
+    db._chats[key].push({ from: 'system', text: `❌ TRANSACTION DECLINED: ${pending.toName} declined the offer.`, ts: Date.now(), isSystem: true });
+    await saveDB(db);
+    showToast('Transaction declined');
+    if (currentChatPeer && currentChatPeer.id === pending.from) loadMessages();
+}
+
+// ========== UTILS ==========
+function switchTab(tab, btn) {
+    document.querySelectorAll('.nbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-wallet').style.display = 'none';
+    document.getElementById('tab-search').style.display = 'none';
+    document.getElementById('tab-chats').style.display = 'none';
+    document.getElementById('tab-chat').style.display = 'none';
+    document.getElementById(`tab-${tab}`).style.display = 'block';
+    if (tab === 'search') loadUsersList();
+    if (tab === 'chats') loadChatsList();
+}
+
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function escapeHtml(s) { return (s || '').replace(/[&<>]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c])); }
+function showToast(msg) { const t = document.createElement('div'); t.className = 'toast'; t.innerHTML = msg; document.body.appendChild(t); setTimeout(() => t.remove(), 2000); }
+
+// ========== INIT ==========
+window.onload = () => {
+    init3D();
+    const saved = localStorage.getItem('denisia_user');
+    if (saved) {
+        currentUser = JSON.parse(saved);
+        document.getElementById('s-terms').style.display = 'none';
+        bootApp();
+    } else {
+        document.getElementById('s-terms').style.display = 'flex';
+    }
+};
+</script>
+</body>
+</html>
